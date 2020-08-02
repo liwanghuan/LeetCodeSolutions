@@ -1,0 +1,221 @@
+// 1531. String Compression II
+/*
+Problem Description:
+
+Run-length encoding is a string compression method that works by replacing consecutive identical characters (repeated 2 or more times) with the concatenation of the character and the number marking the count of the characters (length of the run). For example, to compress the string "aabccc" we replace "aa" by "a2" and replace "ccc" by "c3". Thus the compressed string becomes "a2bc3".
+
+Notice that in this problem, we are not adding '1' after single characters.
+
+Given a string s and an integer k. You need to delete at most k characters from s such that the run-length encoded version of s has minimum length.
+
+Find the minimum length of the run-length encoded version of s after deleting at most k characters.
+
+Example 1:
+Input: s = "aaabcccd", k = 2
+Output: 4
+Explanation: Compressing s without deleting anything will give us "a3bc3d" of length 6. Deleting any of the characters 'a' or 'c' would at most decrease the length of the compressed string to 5, for instance delete 2 'a' then we will have s = "abcccd" which compressed is abc3d. Therefore, the optimal way is to delete 'b' and 'd', then the compressed version of s will be "a3c3" of length 4.
+
+Example 2:
+Input: s = "aabbaa", k = 2
+Output: 2
+Explanation: If we delete both 'b' characters, the resulting compressed string would be "a4" of length 2.
+
+Example 3:
+Input: s = "aaaaaaaaaaa", k = 0
+Output: 3
+Explanation: Since k is zero, we cannot delete anything. The compressed string is "a11" of length 3.
+
+Constraints:
+
+1 <= s.length <= 100
+0 <= k <= s.length
+s contains only lowercase English letters.
+
+*/
+
+class Pair {
+    public char value;
+    public int occurence;
+
+    Pair(char v, int o) {
+        this.value = v;
+        this.occurence = o;
+    }
+
+    Pair addOccurence() {
+        this.occurence ++;
+        return this;
+    }
+}
+
+class Solution {
+
+    public int getLengthOfOptimalCompression(String s, int k) {
+        Stack<Pair> stringStack = convert(s);
+        return dp(stringStack, new Stack<Pair>(), k);
+    }
+
+    private Stack<Pair> convert(String s) {
+        Stack<Pair> stringStack = new Stack<>();
+
+        for (char c: s.toCharArray()) {
+            if (stringStack.isEmpty() || stringStack.peek().value != c) {
+                stringStack.push(new Pair(c, 1));
+            } else {
+                Pair top = stringStack.pop();
+                stringStack.push(top.addOccurence());
+            }
+        }
+
+        return stringStack;
+    }
+
+    private int dp (Stack<Pair> remainStack, Stack<Pair> proceedStack, int k) {
+        if (remainStack.isEmpty() || k == 0) return merge(remainStack, proceedStack);
+
+        Pair remainTop = remainStack.pop();
+        int resultWithDeduction = 0;
+        int resultWithoutDeduction = 0;
+        if (remainTop.occurence > k) {
+
+            remainStack.push(new Pair(remainTop.value, remainTop.occurence - k));
+            resultWithDeduction = dp(remainStack, proceedStack, 0);
+            remainStack.pop();
+
+
+        } else {
+            resultWithDeduction = dp(remainStack, proceedStack, k-remainTop.occurence);
+        }
+
+        mergeOrpush(remainTop, proceedStack);
+        resultWithoutDeduction = dp(remainStack, proceedStack, k);
+
+        return Math.min(resultWithDeduction, resultWithoutDeduction);
+
+    }
+
+    private void mergeOrpush(Pair pair, Stack<Pair> proceedStack) {
+        if (proceedStack.isEmpty() || pair.value != proceedStack.peek().value) {
+            proceedStack.push(pair);
+        } else {
+            proceedStack.push(new Pair(pair.value, pair.occurence + proceedStack.pop().occurence));
+        }
+    }
+    private int merge (Stack<Pair> remainStack, Stack<Pair> proceedStack) {
+        if (proceedStack.isEmpty() || remainStack.isEmpty()) return calculateLength(remainStack, proceedStack);
+
+        Stack<Pair> clonedRemainStack = (Stack<Pair>) remainStack.clone();
+        Stack<Pair> clonedProceedStack = (Stack<Pair>) proceedStack.clone();
+        if (clonedRemainStack.peek().value == clonedProceedStack.peek().value) {
+            Pair mergedTop = new Pair(clonedRemainStack.peek().value , clonedRemainStack.pop().occurence + clonedProceedStack.pop().occurence);
+            clonedRemainStack.push(mergedTop);
+        }
+
+        return calculateLength(clonedRemainStack, clonedProceedStack);
+    }
+
+    private int calculateLength(Stack<Pair> remainStack, Stack<Pair> proceedStack) {
+        int length = 0;
+        Stack<Pair> clonedRemainStack = (Stack<Pair>) remainStack.clone();
+        Stack<Pair> clonedProceedStack = (Stack<Pair>) proceedStack.clone();
+
+        while (!clonedRemainStack.isEmpty()) {
+            length += calculateSingleLength(clonedRemainStack.pop().occurence);
+        }
+
+        while (!clonedProceedStack.isEmpty()) {
+            length += calculateSingleLength(clonedProceedStack.pop().occurence);
+        }
+
+        return length;
+    }
+
+    private int calculateSingleLength (int len) {
+        if (len == 1) return 1;
+
+        int result = 0;
+        while (len!= 0) {
+            result ++;
+            len = len/10;
+        }
+        return result + 1;
+    }
+}
+
+// Method 2: 4 level of DP in C++ implementation
+/* 
+state: index, remain k, last char, concat number
+Detailed Explanation: for each index, you have two choices: delete this char or concat
+we calculate the contribution to the total len, get the min length.
+
+Since N <= 100, we don't need a space of 100 for the last dimension of dp array. because x >= 10 && x <= 99 doesn't increment a length contribution to the total length.
+However, we need a special check for the case which has 100 same chars.
+*/
+
+int f[105][105][30][105];
+
+class Solution {
+public:
+    int getLengthOfOptimalCompression(string s, int k) {
+        this->s = s;
+        
+        const int N = s.size();
+        for (int i = 0; i <= N; i++) {
+            for (int j = 0; j <= N; j++) {
+                for (int k = 0; k <= 26; k++) {
+                    for (int m = 0; m <= N; m++) {
+                        f[i][j][k][m] = -1;
+                    }
+                }
+            }
+        }
+        
+        return dfs(0, k, 26, 0);
+    }
+private:
+    string s;
+    int dfs(int idx, int k, int last, int concat) {
+        if (k < 0) return 9999999;
+        if (idx == s.size()) return 0;
+        
+        int& val = f[idx][k][last][concat];
+        if (val != -1) return val;
+        
+        int answer = 9999999;
+        // delete
+        answer = min(answer, dfs(idx + 1, k - 1, last, concat));
+        // concat
+        if (last == s[idx] - 'a') {
+            const int fac = (concat == 1 || concat == 9 || concat == 99) ? 1 : 0;
+            answer = min(answer, fac + dfs(idx + 1, k, last, concat + 1));
+        } else {
+            answer = min(answer, 1 + dfs(idx + 1, k, s[idx] - 'a', 1));
+        }
+        return val = answer;
+    }
+}
+
+
+// Method 3: Python for implementation. Similar with above, just more simple and readable
+class Solution:
+    def getLengthOfOptimalCompression(self, s: str, k: int) -> int:
+        # this decorator automatically use memo with key = (start, last, last_count, left)
+        @lru_cache(None)
+        def counter(start, last, last_count, left): #count the cost of compressing from the start
+            if left < 0:
+                return float('inf') # this is impossible
+            if start >= len(s):
+                return 0
+            if s[start] == last:
+                # we have a stretch of the last_count of the same chars, what is the cost of adding one more? 
+                incr = 1 if last_count == 1 or last_count == 9 or last_count == 99 else 0
+                # no need to delete here, if we have a stretch of chars like 'aaaaa' - we delete it from the beginning in the else delete section
+                return incr + counter(start+1, last, last_count+1, left) # we keep this char for compression
+            else:
+                # keep this char for compression - it will increase the result length by 1 plus the cost of compressing the rest of the string 
+                keep_counter = 1 + counter(start+1, s[start], 1, left)
+                # delete this char
+                del_counter =  counter(start + 1, last, last_count, left - 1)
+                return min(keep_counter, del_counter)
+            
+        return counter(0, "", 0, k)
